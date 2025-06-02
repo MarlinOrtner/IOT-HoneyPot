@@ -271,7 +271,7 @@ void logCommand(String ip, uint16_t port, String command) {
     http.begin(WebhookURL);
     http.addHeader("Content-Type", "application/json");
 
-    String msg = "{\"content\":\"📡 **Honeypot**\\n🔍 IP: " + ip +
+    String msg = "{\"content\":\"📡 **FH - Honeypot**\\n🔍 IP: " + ip +
                  "\\n📌 Port: " + String(port) +
                  "\\n💻 Command: " + escapeJSON(command) +
                  "\\n__________________________\"}";
