@@ -40,6 +40,7 @@ WiFiServer mysqlServer(3306);
 WiFiServer rdpServer(3389);
 WiFiServer vncServer(5900);
 WiFiServer ahttpServer(8080);
+WiFiServer Router(2323);
 
 std::vector<uint16_t> enabledPorts;
 
@@ -68,6 +69,17 @@ void createFileIfMissing(const char* path, const char* content) {
   }
 }
 
+void createFile(const char* path, const char* content) {
+    File f = SPIFFS.open(path, FILE_WRITE);
+    if (f) {
+      f.print(content);
+      f.close();
+      Serial.println(String("[+] Create : ") + path);
+    } else {
+      Serial.println(String("[!] Fail to create : ") + path);
+    }
+}
+
 void initSPIFFS() {
   if (!SPIFFS.begin(true)) {
     Serial.println("[!] Error SPIFFS");
@@ -75,7 +87,7 @@ void initSPIFFS() {
   }
 
   // Création automatique des fichiers de base
-  createFileIfMissing(configPath, "{\"ssid\":\"\",\"password\":\"\",\"webhook\":\"\",\"ports\":[21,22,23,25,53,110,143,443,445,3306,3389,5900,8080]}");
+  createFileIfMissing(configPath, "{\"ssid\":\"\",\"password\":\"\",\"webhook\":\"\",\"ports\":[21,22,23,25,53,110,143,443,445,3306,3389,5900,8080,2323]}");
   createFileIfMissing(logPath, "");
   createFileIfMissing(indexPath,
                       "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Honeypot Config</title>"
@@ -115,6 +127,7 @@ void initSPIFFS() {
                       "<label><input type='checkbox' name='ports' value='3389'> RDP (3389)</label>"
                       "<label><input type='checkbox' name='ports' value='5900'> VNC (5900)</label>"
                       "<label><input type='checkbox' name='ports' value='8080'> AHTTP (8080)</label>"
+                      "<label><input type='checkbox' name='ports' value='2323'> Router (2323)</label>"
                       "</div>"
                       "<button id='save' type='submit'>Save Configuration</button>"
                       "</form>"
@@ -383,6 +396,77 @@ String readLine(WiFiClient &client, bool echo = false) {
   }
   return line;
 }
+
+void handleFakeRouter(WiFiClient client) {
+  // 1) Login-Prompts
+  client.print("\r\nUsername: ");
+  String user = readLine(client, false);
+  logCommand(client.remoteIP().toString(), 2323, "LOGIN username: " + user);
+
+  client.print("Password: ");
+  String pass = readLine(client, false);
+  logCommand(client.remoteIP().toString(), 2323, "LOGIN password: " + pass);
+
+  // 2) Fake-Willkommensmeldung
+  client.println("");
+  client.println("Welcome to RouterOS v1.0");
+  client.println("Type 'help' for a list of commands.");
+  client.println("");
+
+  // 3) Interaktive Schleife
+  while (client.connected()) {
+    client.print("Router> ");
+    String cmd = readLine(client, false);
+    cmd.trim();
+    if (cmd.length() == 0) continue;
+
+    // Loggen, welche Befehle eingegeben wurden
+    logCommand(client.remoteIP().toString(), 2323, "CMD: " + cmd);
+
+    // 4) Vordefinierte Antworten
+    if (cmd.equalsIgnoreCase("exit") || cmd.equalsIgnoreCase("quit")) {
+      client.println("Logging out...");
+      break;
+    }
+    else if (cmd.equalsIgnoreCase("help")) {
+      client.println("Available commands:");
+      client.println("  show running-config");
+      client.println("  show users");
+      client.println("  show secrets");
+      client.println("  exit");
+    }
+    else if (cmd.equalsIgnoreCase("show running-config")) {
+      client.println("!Router Configuration");
+      client.println("hostname RouterOS");
+      client.println("interface wlan0 ip address 192.168.0.1/24");
+      client.println("interface eth0 ip address dhcp");
+      client.println("user admin privilege 15");
+      client.println("!");
+    }
+    else if (cmd.equalsIgnoreCase("show users")) {
+      client.println("USER       LEVEL");
+      client.println("admin      15");
+      client.println("guest      1");
+    }
+    else if (cmd.equalsIgnoreCase("show secrets")) {
+      client.println("secret1:  s3cr3tPassw0rd");
+      client.println("secret2:  topsecret123");
+    }
+    else {
+      client.println("Unknown command: " + cmd);
+    }
+  }
+
+  // 5) Verbindung schließen
+  client.println("");
+  client.println("Goodbye!");
+  delay(50);
+  client.stop();
+  Serial.println("Router session closed.");
+}
+
+
+
 
 // -- Handle interaction with a single Telnet client --
 void handleHoneypotClient(WiFiClient client) {
@@ -1149,6 +1233,7 @@ void startHoneypot() {
   tryBegin(3389, rdpServer);
   tryBegin(5900, vncServer);
   tryBegin(8080, ahttpServer);
+  tryBegin(2323, Router);
 
   while (true) {
     if (std::find(enabledPorts.begin(), enabledPorts.end(), 23) != enabledPorts.end()) {
@@ -1242,6 +1327,13 @@ void startHoneypot() {
         handleBannerGrab(c, 3389, rdpBanner, sizeof(rdpBanner));
       }
     }
+    if (std::find(enabledPorts.begin(), enabledPorts.end(), 2323) != enabledPorts.end()) {
+      if (WiFiClient c = fakeRouterServer.accept()) {
+        handleFakeRouter(c);
+      }
+    }
+
+
     delay(10);
   }
 }
