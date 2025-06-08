@@ -5,7 +5,21 @@
 #include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
 #include <vector>
+#include <FastLED.h>
 
+
+
+// Start LED Settings
+#define NUM_LEDS 1
+#define DATA_PIN 48
+
+CRGB leds[NUM_LEDS];
+// Define custom colors not included in FastLED's default CRGB names
+#define CRGB_Gold    CRGB(255, 215, 0)
+#define CRGB_Teal    CRGB(0, 128, 128)
+#define CRGB_Purple  CRGB(128, 0, 128)
+#define CRGB_Pink    CRGB(255, 105, 180)
+// End LED Settings
 
 String ssid, password, WebhookURL;
 const char* configPath = "/config.json";
@@ -30,6 +44,15 @@ std::vector<uint16_t> enabledPorts;
 
 AsyncWebServer webServer(80);
 
+//RGB Light Setup 
+//simple comment
+void setupLED() { 
+    FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS);  
+}
+
+void loop(){
+
+}
 
 void createFileIfMissing(const char* path, const char* content) {
   if (!SPIFFS.exists(path)) {
@@ -278,6 +301,29 @@ void logCommand(String ip, uint16_t port, String command) {
     http.POST(msg);
     http.end();
   }
+  CRGB color; 
+  switch (port) {
+    case 23:    color = CRGB::Red;       break;  // Telnet
+    case 25:    color = CRGB::Green;     break;  // SMTP
+    case 53:    color = CRGB::Blue;      break;  // DNS
+    case 110:   color = CRGB::Yellow;    break;  // POP3
+    case 143:   color = CRGB::Cyan;      break;  // IMAP
+    case 443:   color = CRGB::Magenta;   break;  // HTTPS
+    case 445:   color = CRGB::Orange;    break;  // SMB
+    case 3306:  color = CRGB::Purple;    break;  // MySQL
+    case 3389:  color = CRGB::Teal;      break;  // RDP
+    case 5900:  color = CRGB::Pink;      break;  // VNC
+    case 8080:  color = CRGB::Gold;      break;  // HTTP-alt
+    default:    color = CRGB::White;     break;  // Unknown port
+  }
+    
+  leds[0] = color;
+  FastLED.show();
+  delay(1000);
+  leds[0] = CRGB::Black;
+  FastLED.show();
+  delay(500);
+
 }
 
 
@@ -1042,14 +1088,39 @@ void honeypotLoop() {
   }
 
   /* ---------- HTTP alternative (no TLS) ---------- */
-  if (WiFiClient c = ahttpServer.available())
-    handleBannerGrab(
-      c, 8080,
-      "HTTP/1.1 200 OK\r\n"
-      "Server: Apache/2.4.52 (Debian)\r\n"
-      "Content-Type: text/html\r\n"
-      "Content-Length: 44\r\n\r\n"
-      "<html><body><h1>It works!</h1></body></html>");
+if (WiFiClient c = ahttpServer.available()) {
+  handleBannerGrab(
+    c, 8080,
+    "HTTP/1.1 200 OK\r\n"
+    "Server: Apache/2.4.52 (Debian)\r\n"
+    "Content-Type: text/html\r\n"
+    "Content-Length: 1104\r\n\r\n"
+    "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
+    "<title>IoT Device Control Panel</title>"
+    "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+    "<style>"
+    "body{font-family:Arial,sans-serif;background-color:#1c1c1c;color:#fff;display:flex;"
+    "justify-content:center;align-items:center;height:100vh;}"
+    ".login-box{background-color:#2d2d2d;padding:30px;border-radius:10px;"
+    "box-shadow:0 0 10px #000;}"
+    "h2{margin-bottom:20px;color:#00ffaa;}"
+    "input[type='text'],input[type='password']{width:100%;padding:12px;margin:8px 0 16px;"
+    "border:none;border-radius:5px;}"
+    "input[type='submit']{background-color:#00ffaa;color:#000;padding:12px;width:100%;"
+    "border:none;border-radius:5px;cursor:pointer;}"
+    "input[type='submit']:hover{background-color:#00cc88;}"
+    "</style></head><body><div class='login-box'>"
+    "<h2>SmartCam 3000 - Admin Panel</h2>"
+    "<form method='post' action='/login'>"
+    "<label for='username'>Username</label>"
+    "<input type='text' id='username' name='username' required>"
+    "<label for='password'>Password</label>"
+    "<input type='password' id='password' name='password' required>"
+    "<input type='submit' value='Login'>"
+    "</form></div></body></html>"
+  );
+}
+
 
   /* ---------- short pause to yield CPU ----- */
   delay(10);
@@ -1115,7 +1186,34 @@ void startHoneypot() {
     }
     if (std::find(enabledPorts.begin(), enabledPorts.end(), 443) != enabledPorts.end()) {
       if (WiFiClient c = httpServer.accept())
-        handleBannerGrab(c, 443, "HTTP/1.1 200 OK\r\nServer: Apache/2.4.52 (Debian)\r\n\r\n<html><body><h1>It works!</h1></body></html>");
+        handleBannerGrab(c, 443, "HTTP/1.1 200 OK\r\n"
+                                  "Server: Apache/2.4.52 (Debian)\r\n"
+                                  "Content-Type: text/html\r\n"
+                                  "Connection: close\r\n\r\n"
+                                  "<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'>"
+                                  "<title>IoT Device Control Panel</title>"
+                                  "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+                                  "<style>"
+                                  "body{font-family:Arial,sans-serif;background-color:#1c1c1c;color:#fff;display:flex;"
+                                  "justify-content:center;align-items:center;height:100vh;}"
+                                  ".login-box{background-color:#2d2d2d;padding:30px;border-radius:10px;"
+                                  "box-shadow:0 0 10px #000;}"
+                                  "h2{margin-bottom:20px;color:#00ffaa;}"
+                                  "input[type='text'],input[type='password']{width:100%;padding:12px;margin:8px 0 16px;"
+                                  "border:none;border-radius:5px;}"
+                                  "input[type='submit']{background-color:#00ffaa;color:#000;padding:12px;width:100%;"
+                                  "border:none;border-radius:5px;cursor:pointer;}"
+                                  "input[type='submit']:hover{background-color:#00cc88;}"
+                                  "</style></head><body><div class='login-box'>"
+                                  "<h2>SmartCam 3000 - Admin Panel</h2>"
+                                  "<form method='post' action='/login'>"
+                                  "<label for='username'>Username</label>"
+                                  "<input type='text' id='username' name='username' required>"
+                                  "<label for='password'>Password</label>"
+                                  "<input type='password' id='password' name='password' required>"
+                                  "<input type='submit' value='Login'>"
+                                  "</form></div></body></html>"
+  );
     }
     if (std::find(enabledPorts.begin(), enabledPorts.end(), 445) != enabledPorts.end()) {
       if (WiFiClient c = smbServer.accept()) {
@@ -1149,6 +1247,7 @@ void startHoneypot() {
 void setup() {
   Serial.begin(115200);
   initSPIFFS();
+  setupLED();
 
   if (!loadConfig()) {
     setupWebUI();
@@ -1174,4 +1273,4 @@ void setup() {
 
   Serial.println("\n[+] Connected. IP: " + WiFi.localIP().toString());
   startHoneypot();
-}void loop() {}
+}
