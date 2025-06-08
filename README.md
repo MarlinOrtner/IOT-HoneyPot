@@ -1,20 +1,11 @@
 <div align="center">
 
-## M5Stack NanoC6 ESP32 Honeypot
+## ESP32 IoT-Honeypot
 
 <img alt="logo" src="./m5nanohoney.png" width="33%" height="33%"/>
   
-This project is a standalone Multi-port honeypot for NanoC6 and ESP32 platform. It emulates a realistic Linux shell environment on telnet and multiple port banner to attract and analyze unauthorized access attempts. It features a full web-based configuration UI, persistent storage using SPIFFS, and webhook-based alerting that can be integrated with Discord, Telegram, Signal, WhatsApp, or SIEM platforms like ELK.
+This project is a standalone Multi-port honeypot for ESP32 platform based on the GitHub project <a href="https://github.com/7h30th3r0n3/NanoC6-ESP32-Honeypot">NanoC6-ESP32-Honeypot</a> from @7h30th3r0n3. It emulates a realistic Linux shell environment on telnet and multiple port banner to attract and analyze unauthorized access attempts. It features a full web-based configuration UI, persistent storage using SPIFFS, and webhook-based alerting that has been integrated with Discord and an ELK-Stack has been set up.
   
-  Here the demo video on Evil-Cardputer:
-  
-  <a href="https://youtube.com/shorts/P73wcEghjso" >
-      <img alt="Demo Video" src="https://img.youtube.com/vi/P73wcEghjso/0.jpg" width="33%" height="33%"/>
-  </a>
-
-Thanks to hosseios for the video ! 
-
-
 <table>
   <tr>
     <td align="center">
@@ -31,10 +22,6 @@ Thanks to hosseios for the video !
       <strong>Real-time Alerts on Discord</strong><br>
       <img src="./WebHookDiscord.jpg" width="200px">
     </td>
-    <td align="center">
-      <strong>5 Days of ELK Data Collection</strong><br>
-      <img src="./honeypot.png" width="900px">
-    </td>
   </tr>
 </table>
 
@@ -49,7 +36,7 @@ Thanks to hosseios for the video !
 - Realistic Linux shell simulation with multiple commands supported (pwd, whoami, cat, ls, cd, apt, etc.)  
 - Banner grabbing for port 21,22,25,53,110,143,443,445,3306,3389,5900,8080  
 - Automatic logging of all client inputs with timestamp and IP address
-- Webhooks for real-time alerts (Discord, Telegram, Signal, WhatsApp, SIEM, etc.)
+- Webhooks for real-time alerts (Discord, SIEM (ELK))
 - Web-based configuration panel (SSID, password, port selection and webhook configuration)
 - SPIFFS-based file system for persistent config and logs
 - Modular code, compatible with any ESP32 board
@@ -58,14 +45,7 @@ Thanks to hosseios for the video !
 ## 🧩 Compatible Devices
 
 Tested and confirmed working on:
-
-- **Atom C6** (one of the smallest): [Buy here](https://shop.m5stack.com/products/m5stack-nanoc6-dev-kit?ref=7h30th3r0n3)
-- **M5Stack AtomS3**: [Buy here](https://s.click.aliexpress.com/e/_DnDXSKJ) or [Buy here](https://shop.m5stack.com/products/atoms3-dev-kit-w-0-85-inch-screen?ref=7h30th3r0n3)
-- **M5Stack Atom Lite**: [Buy here](https://s.click.aliexpress.com/e/_Dm0e95D)
-- **ESP32-C3** (with external antenna): [Buy here](https://s.click.aliexpress.com/e/_DD1yibp) (Be carefull to select sets WITH antenna) 
-
-Any ESP32 Dev Board should work (e.g. DevKitC, NodeMCU-32S, Wemos D1 R32)  
-please report no working devices 
+- **ESP32-S3-DevKitC-1**
 
 ---
 
@@ -81,8 +61,6 @@ please report no working devices
 6. All captured inputs will be logged and optionally sent to your webhook
 
 If the AP is not near it, mode configuration is enabled and web portal is accessible.
-
-Note : NanoC6 can be put in configuration mode by olding the button when the white light is ON at boot.
 
 --- 
 
@@ -129,6 +107,7 @@ Note : NanoC6 can be put in configuration mode by olding the button when the whi
 - ArduinoJson
 - SPIFFS (built-in)
 - WiFi (built-in)
+- FastLED
 
 Make sure to install the required libraries via Library Manager or PlatformIO.
 
