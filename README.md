@@ -1,8 +1,6 @@
 <div align="center">
 
 ## ESP32 IoT-Honeypot
-
-<img alt="logo" src="./m5nanohoney.png" width="33%" height="33%"/>
   
 This project is a standalone Multi-port honeypot for ESP32 platform based on the GitHub project <a href="https://github.com/7h30th3r0n3/NanoC6-ESP32-Honeypot">NanoC6-ESP32-Honeypot</a> from @7h30th3r0n3. It emulates a realistic Linux shell environment on telnet and multiple port banner to attract and analyze unauthorized access attempts. It features a full web-based configuration UI, persistent storage using SPIFFS, and webhook-based alerting that has been integrated with Discord and an ELK-Stack has been set up.
   
