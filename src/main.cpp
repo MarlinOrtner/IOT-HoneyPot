@@ -303,10 +303,8 @@ unsigned long getTime() {
     return(millis());
   }
   time(&now);
-  Serial.println("Time: "+String(now));
   return now;
 }
-
 
 void logCommand(String ip, uint16_t port, String command) {
   File logFile = SPIFFS.open(logPath, FILE_APPEND);
@@ -1411,7 +1409,7 @@ void setup() {
 
     http1.POST(msg);
     http1.end();
-  }
+  }*/
 
   startHoneypot();
 }
