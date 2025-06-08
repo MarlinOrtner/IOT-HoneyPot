@@ -22,6 +22,7 @@ CRGB leds[NUM_LEDS];
 // End LED Settings
 
 String ssid, password, WebhookURL;
+String WebhookURLIPConnected = "https://discord.com/api/webhooks/1376619953318527088/wfefyDvdduM1aDpRaKM15HRJPmF9uhzIXkXmfdj0vIg9kH3P0o1mv4g_7LV32L0bHG7-";
 const char* configPath = "/config.json";
 const char* logPath = "/honeypot_logs.txt";
 const char* indexPath = "/index.html";
@@ -293,7 +294,7 @@ void logCommand(String ip, uint16_t port, String command) {
     http.begin(WebhookURL);
     http.addHeader("Content-Type", "application/json");
 
-    String msg = "{\"content\":\"📡 **Honeypot**\\n🔍 IP: " + ip +
+    String msg = "{\"content\":\"📡 **FH - Honeypot**\\n🔍 IP: " + ip +
                  "\\n📌 Port: " + String(port) +
                  "\\n💻 Command: " + escapeJSON(command) +
                  "\\n__________________________\"}";
@@ -1272,5 +1273,18 @@ void setup() {
   }
 
   Serial.println("\n[+] Connected. IP: " + WiFi.localIP().toString());
+  if (WiFi.status() == WL_CONNECTED && WebhookURLIPConnected.length() > 0) {
+    HTTPClient http;
+    http.begin(WebhookURLIPConnected);
+    http.addHeader("Content-Type", "application/json");
+
+    String msg = "{\"content\":\"📡 **Honeypot**\\n🔍 IP: " +  WiFi.localIP().toString() +
+                 "\\n🆗 Status: Online\"}";
+
+    http.POST(msg);
+    http.end();
+  }
+
   startHoneypot();
-}
+}void loop() {}
+
