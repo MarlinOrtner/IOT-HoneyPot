@@ -6,7 +6,7 @@
 #include <ArduinoJson.h>
 #include <vector>
 #include <FastLED.h>
-
+#include "time.h"
 
 
 // Start LED Settings
@@ -36,11 +36,12 @@ WiFiServer pop3Server(110);
 WiFiServer imapServer(143);
 WiFiServer httpServer(443);
 WiFiServer smbServer(445);
+WiFiServer mqttServer(1883);  
 WiFiServer mysqlServer(3306);
 WiFiServer rdpServer(3389);
 WiFiServer vncServer(5900);
 WiFiServer ahttpServer(8080);
-WiFiServer Router(2323);
+WiFiServer RouterServer(2323);
 
 std::vector<uint16_t> enabledPorts;
 
@@ -86,8 +87,8 @@ void initSPIFFS() {
     return;
   }
 
-  // Création automatique des fichiers de base
-  createFileIfMissing(configPath, "{\"ssid\":\"\",\"password\":\"\",\"webhook\":\"\",\"ports\":[21,22,23,25,53,110,143,443,445,3306,3389,5900,8080,2323]}");
+  
+  createFileIfMissing(configPath, "{\"ssid\":\"\",\"password\":\"\",\"webhook\":\"\",\"ports\":[21,22,23,25,53,110,143,443,445,1883,3306,3389,5900,8080]}");
   createFileIfMissing(logPath, "");
   createFileIfMissing(indexPath,
                       "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Honeypot Config</title>"
@@ -123,6 +124,7 @@ void initSPIFFS() {
                       "<label><input type='checkbox' name='ports' value='143'> IMAP (143)</label>"
                       "<label><input type='checkbox' name='ports' value='443'> HTTPS (443)</label>"
                       "<label><input type='checkbox' name='ports' value='445'> SMB (445)</label>"
+                      "<label><input type='checkbox' name='ports' value='1883'> MWTT (1833)</label>"
                       "<label><input type='checkbox' name='ports' value='3306'> MySQL (3306)</label>"
                       "<label><input type='checkbox' name='ports' value='3389'> RDP (3389)</label>"
                       "<label><input type='checkbox' name='ports' value='5900'> VNC (5900)</label>"
@@ -292,12 +294,25 @@ String escapeJSON(String s) {
 
   return result;
 }
+const char* ntpServer = "pool.ntp.org";
+unsigned long getTime() {
+  time_t now;
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    Serial.println("Failed to obtain time");
+    return(millis());
+  }
+  time(&now);
+  Serial.println("Time: "+String(now));
+  return now;
+}
+
 
 void logCommand(String ip, uint16_t port, String command) {
   File logFile = SPIFFS.open(logPath, FILE_APPEND);
   if (!logFile) return;
 
-  logFile.println("[" + String(millis()) + "] IP: " + ip + " - Port: " + String(port) + " - Command: " + command);
+  logFile.println("[" + String(getTime()) + "] IP: " + ip + " - Port: " + String(port) + " - Command: " + command);
   logFile.close();
 
   Serial.println("IP: " + ip + " | Port: " + String(port) + " | CMD: " + command + "|Escaped " + escapeJSON(command));
@@ -324,6 +339,7 @@ void logCommand(String ip, uint16_t port, String command) {
     case 143:   color = CRGB::Cyan;      break;  // IMAP
     case 443:   color = CRGB::Magenta;   break;  // HTTPS
     case 445:   color = CRGB::Orange;    break;  // SMB
+    case 1833:  color = CRGB::Aqua ;    break;  // MQTT
     case 3306:  color = CRGB::Purple;    break;  // MySQL
     case 3389:  color = CRGB::Teal;      break;  // RDP
     case 5900:  color = CRGB::Pink;      break;  // VNC
@@ -465,7 +481,15 @@ void handleFakeRouter(WiFiClient client) {
   Serial.println("Router session closed.");
 }
 
-
+void handleMQTTClient(WiFiClient client) {
+  if (!client.connected()) return;
+  String ip = client.remoteIP().toString();
+  String payload = dumpBytes(client);
+  const uint8_t connack[] = {0x20, 0x02, 0x00, 0x00}; //Reply with CONNACK after a presumed CONN from mqtt client
+  client.write(connack, sizeof(connack));
+  client.stop();
+  logCommand(ip, 1883, payload);
+}
 
 
 // -- Handle interaction with a single Telnet client --
@@ -1160,6 +1184,12 @@ void honeypotLoop() {
     memcpy(pkt + 4, MYSQL_PAY, sizeof(MYSQL_PAY));
     handleBannerGrab(c, 3306, pkt, sizeof(pkt));
   }
+  if (WiFiClient c = mqttServer.accept()) {
+    const uint8_t connack[] = {0x20, 0x02, 0x00, 0x00};   // minimal CONNACK
+    handleBannerGrab(c, 1883,connack, sizeof(connack));
+  }
+
+
 
   /* ---------- RDP Connection‑Confirm ------------------------------- */
   if (WiFiClient c = rdpServer.available()) {
@@ -1229,11 +1259,12 @@ void startHoneypot() {
   tryBegin(143, imapServer);
   tryBegin(443, httpServer);
   tryBegin(445, smbServer);
+  tryBegin(1883, mqttServer);
   tryBegin(3306, mysqlServer);
   tryBegin(3389, rdpServer);
   tryBegin(5900, vncServer);
   tryBegin(8080, ahttpServer);
-  tryBegin(2323, Router);
+  tryBegin(2323, RouterServer);
 
   while (true) {
     if (std::find(enabledPorts.begin(), enabledPorts.end(), 23) != enabledPorts.end()) {
@@ -1328,8 +1359,13 @@ void startHoneypot() {
       }
     }
     if (std::find(enabledPorts.begin(), enabledPorts.end(), 2323) != enabledPorts.end()) {
-      if (WiFiClient c = fakeRouterServer.accept()) {
+      if (WiFiClient c = RouterServer.accept()) {
         handleFakeRouter(c);
+      }
+    }
+    if (std::find(enabledPorts.begin(), enabledPorts.end(), 1883) != enabledPorts.end()) {
+      if (WiFiClient c = mqttServer.accept()) {
+        handleMQTTClient(c);
       }
     }
 
@@ -1341,7 +1377,7 @@ void setup() {
   Serial.begin(115200);
   initSPIFFS();
   setupLED();
-
+  configTime(0, 0, ntpServer);
   if (!loadConfig()) {
     setupWebUI();
     return;
@@ -1366,17 +1402,17 @@ void setup() {
 
   Serial.println("\n[+] Connected. IP: " + WiFi.localIP().toString());
   if (WiFi.status() == WL_CONNECTED && WebhookURLIPConnected.length() > 0) {
-    HTTPClient http;
-    http.begin(WebhookURLIPConnected);
-    http.addHeader("Content-Type", "application/json");
+    HTTPClient http1;
+    http1.begin(WebhookURLIPConnected);
+    http1.addHeader("Content-Type", "application/json");
 
     String msg = "{\"content\":\"📡 **Honeypot**\\n🔍 IP: " +  WiFi.localIP().toString() +
                  "\\n🆗 Status: Online\"}";
 
-    http.POST(msg);
-    http.end();
+    http1.POST(msg);
+    http1.end();
   }
 
   startHoneypot();
-}void loop() {}
+}
 
