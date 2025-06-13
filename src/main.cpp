@@ -1409,7 +1409,7 @@ void setup() {
 
     http1.POST(msg);
     http1.end();
-  }*/
+  }
 
   startHoneypot();
 }
