@@ -39,7 +39,7 @@ This project is a standalone Multi-port honeypot for ESP32 platform based on the
 - Web-based configuration panel (SSID, password, port selection and webhook configuration)
 - SPIFFS-based file system for persistent config and logs on flash
 - Modular code, compatible with any ESP32 board
-
+- Visual Feedback via onboard LED depending on accessed service on honeypot
 ---
 ## 🧩 Compatible Devices
 
@@ -63,40 +63,26 @@ If the AP is not near it, mode configuration is enabled and web portal is access
 
 --- 
 
-## 🌳 LED Behavior Decision Tree for NanoC6
+## 🔌 LED Color Indicator by Server Port
 
-```
-                        🔵 Device Boot
-                              │
-                              v
-                    ⚪ LED: White (3 seconds)
-                              │
-                              v
-                   Is Button A stay pressed?
-                        /           \
-                       /             \
-                ⬅️ No                  Yes ➡️
-           🌈 LED Rainbow        🔵 LED Blue (WebUI configuration Mode)
-                  │
-                  v
-        Try connecting to Wi-Fi
-                  │
-                  v
-         Wi-Fi connection success?
-              /              \
-             /                \
-        ⬅️ No                   Yes ➡️
- 🔵 LED Blue flashing ×3    🟩 LED Green (Honeypot Active)
-      then fix blue               │
-(WebUI configuration Mode)        |
-                                  v
-                       Incoming connection?
-                             /        \
-                            /          \
-                       ⬅️ No             Yes ➡️
-                    (Stay Green)   🔴 LED Red flashes ×2
-                                          then Red fixed
-```
+The following table shows how different network services are visually represented by LED colors using the FastLED library.
+
+| **Port** | **Service** | **LED Color**  |
+| -------- | ----------- | -------------- |
+| 23       | Telnet      | 🟥 **Red**     |
+| 25       | SMTP        | 🟩 **Green**   |
+| 53       | DNS         | 🟦 **Blue**    |
+| 110      | POP3        | 🟨 **Yellow**  |
+| 143      | IMAP        | 🟦 **Cyan**    |
+| 443      | HTTPS       | 🟪 **Magenta** |
+| 445      | SMB         | 🟧 **Orange**  |
+| 1833     | MQTT        | 🟦 **Aqua**    |
+| 3306     | MySQL       | 🟪 **Purple**  |
+| 3389     | RDP         | 🟩 **Teal**    |
+| 5900     | VNC         | 🌸 **Pink**    |
+| 8080     | HTTP-alt    | 🟨 **Gold**    |
+| *Other*  | Unknown     | ⚪ **White**    |
+
 
 ---
 
