@@ -30,13 +30,14 @@ This project is a standalone Multi-port honeypot for ESP32 platform based on the
 ## ✅ Features
 
 - Interactive Telnet honeypot server on port 23
+- Interactive RouterOS honeypot server on port 2323
 - Fake file system structure with secrets to lure attackers
 - Realistic Linux shell simulation with multiple commands supported (pwd, whoami, cat, ls, cd, apt, etc.)  
 - Banner grabbing for port 21,22,25,53,110,143,443,445,3306,3389,5900,8080  
-- Automatic logging of all client inputs with timestamp and IP address
+- Automatic logging of all client inputs with NTP-synchronized timestamp and IP address
 - Webhooks for real-time alerts (Discord, SIEM (ELK))
 - Web-based configuration panel (SSID, password, port selection and webhook configuration)
-- SPIFFS-based file system for persistent config and logs
+- SPIFFS-based file system for persistent config and logs on flash
 - Modular code, compatible with any ESP32 board
 
 ---
@@ -168,7 +169,63 @@ Fake files like `/etc/passwd`, `secrets.txt`, `mysql_credentials.txt`, etc. are 
 
 This honeypot is designed for educational and defensive cybersecurity purposes. Do not expose to the internet without proper upstream firewalling or network segmentation. It is not intended to replace full honeynet frameworks like Cowrie, but serves as a lightweight ESP32-based trap canary.
 
----
+## Security of ESP32 flash dumps
+
+The intention is to explore the potential vulnerabilities and protective measures associated with accessing and analyzing the flash memory of an ESP32 microcontroller. It aims to highlight the security implications of dumping flash data while having physical access to the embedded device, such as the risk of exposing sensitive information like Wi-Fi credentials, encryption keys, or proprietary code. 
+
+### esptool.py 
+**esptool.py** is an open-source, Python-based utility used for flashing and communicating with Espressif chips like the ESP32. It allows developers to perform tasks such as reading and writing flash memory, retrieving chip IDs and MAC addresses, and managing eFuse settings. One of its key features is the ability to dump flash memory using commands like `read_flash`, although this may be restricted by security features such as flash encryption and secure boot. Additionally, esptool offers a Python API, making it easy to integrate into custom scripts for automated flashing or provisioning workflows.
+
+<strong>Output of ESPTool</strong><br>
+<img src="./esptool.png" >
+
+### esptool.py dumping flash
+The read_flash command in esptool is used to read and dump the contents of an ESP32's flash memory to a binary file. This is useful for backing up firmware, analyzing stored data, or inspecting potential security vulnerabilities, but may be limited by protections like flash encryption.
+
+<strong>Output of ESPTool read-flash</strong><br>
+<img src="./esptool-flash-dump.png" >
+
+### esptool image info
+The `image_info` command in **esptool.py** prints detailed metadata about a `.bin` or `.hex` firmware image, including load addresses, segment sizes, flash mode, flash frequency, and flash chip size ([docs.espressif.com][1]). It can also detect ESP-IDF–based apps or bootloaders and display their specific headers when using the proper `--chip` option (e.g., `--chip esp32`) ([sming-slaff.readthedocs.io][2]). Developers use it for quick inspection and verification of firmware before flashing, making sure configuration parameters match the target device’s flash settings and preventing mismatches.
+
+<strong>Output of ESPTool image_info using the compiled flash from PIO</strong><br>
+<img src="./esptool-image-info-pio.png" >
+
+<strong>Output of ESPTool image_info using the dumped flash from the ESP23</strong><br>
+<img src="./esptool-image-info-dump.png" >
+
+These images highlight the differences in the partition table of the binary flash file. The DROM segment is apparently missing in the flash dumped binary.
+
+### Converting a flash dump to an ELF file
+The tool 'esp32_image_parser' is used to construct a ELF files from a ESP32 flash dumps. This tool was presented at the Shmoocon 2020. 
+
+Sadly, we could not get this tool to generate a ELF file, as it had problems converting the data using the included partition table. We tried to patch the python script with custom partition tables, overwrite the segment mapping, dumping the flash again with 8MB instead of 4MB and added support for the ESP32-C3 based embedded devices. 
+
+Sources: 
+- https://www.youtube.com/watch?v=w4_3vwN_2dI
+- https://github.com/tenable/esp32_image_parser
+
+### NVS - Non-volatile Storage Libary
+The Non‑Volatile Storage (NVS) library on ESP32 provides a key–value pair storage system within a dedicated partition of the device's flash memory, supporting data types like integers, strings, and blobs. Although NVS supports optional encryption to protect stored values, physical access to the flash still allows erasure or rollback attacks, so it’s best used for small configuration data rather than robust tamper‑resistant storage. 
+
+<strong>Command for extracting the NVS from a dumped flash</strong><br>
+<img src="./esp32-nvs.png" >
+
+<strong>Secrets like SSID and WIFI-Password in NVS</strong><br>
+<img src="./esp32-nvs-secret.png" >
+
+Is is also possible to find these values via hexedit in the dumped flash, but this approach can be very time consuming and inefficient. 
+<strong>Finding secrets in NVS of a dumped flash via hexedit</strong><br>
+<img src="./esp32-nvs-hexedit.png" >
+
+### Reverse Engineering using IDA 
+By using two plugins for IDA Pro, it was possible to decompile the compiled flash by PIO: 
+- https://github.com/themadinventor/ida-xtensa
+- https://github.com/jrozner/esp-image-ida
+
+<strong>Decompile the flash from PIO using IDA Pro</strong><br>
+<img src="./ida.png" >
+
 
 ## 📄 License
 
